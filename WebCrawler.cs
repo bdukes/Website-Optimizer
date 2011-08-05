@@ -123,6 +123,7 @@
             {
                 var webHelper = new HtmlWeb();
                 var pageDocument = webHelper.Load(pageUrl.AbsoluteUri);
+                pageDocument.OptionOutputAsXml = true; // TODO: Determine doctype
 
                 this.SaveToPageDisk(pageUrl, pageDocument);
                 this.UpdateLinks(pageUrl, pageDocument);
@@ -210,7 +211,7 @@
                 return;
             }
 
-            pageDocument.Save(filename);
+            pageDocument.Save(filename, );
         }
 
         private void UpdateLinks(Uri pageUrl, HtmlDocument pageDocument)
