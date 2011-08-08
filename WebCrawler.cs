@@ -211,7 +211,7 @@
                 return;
             }
 
-            pageDocument.Save(filename, );
+            pageDocument.Save(filename);
         }
 
         private void UpdateLinks(Uri pageUrl, HtmlDocument pageDocument)
