@@ -123,7 +123,10 @@
             {
                 var webHelper = new HtmlWeb();
                 var pageDocument = webHelper.Load(pageUrl.AbsoluteUri);
-                pageDocument.OptionOutputAsXml = true; // TODO: Determine doctype
+                
+                // TODO: Determine doctype
+                pageDocument.OptionWriteEmptyNodes = true;
+                pageDocument.OptionOutputOptimizeAttributeValues = false; // TODO: true if HTML doctype
 
                 this.SaveToPageDisk(pageUrl, pageDocument);
                 this.UpdateLinks(pageUrl, pageDocument);
