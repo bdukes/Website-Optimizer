@@ -6,6 +6,7 @@
     using System.IO;
     using System.Linq;
     using System.Net;
+    using System.Text.RegularExpressions;
 
     using HtmlAgilityPack;
 
@@ -18,6 +19,10 @@
         private readonly Dictionary<Uri, string> resources = new Dictionary<Uri, string>();
 
         private readonly Uri siteRoot;
+
+        private static readonly Regex DoctypeRegex = new Regex(@"^<!\s*DOCTYPE", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex StartsWithIEConditionalCommentRegex = new Regex(@"^<!--\[if [^\]]*\]>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+        private static readonly Regex EndsWithIEConditionalCommentRegex = new Regex(@"<!\[endif\]-->$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public WebCrawler(string url, string outputFolder, bool debugMessages)
         {
@@ -51,7 +56,7 @@
             var uncrawledPages = this.GetUncrawledPages();
             do
             {
-                foreach (var uncrawledPage in uncrawledPages.ToList())
+                foreach (var uncrawledPage in uncrawledPages.ToArray())
                 {
                     this.ProcessPage(uncrawledPage);
                 }
@@ -123,11 +128,8 @@
             {
                 var webHelper = new HtmlWeb();
                 var pageDocument = webHelper.Load(pageUrl.AbsoluteUri);
-                
-                // TODO: Determine doctype
-                pageDocument.OptionWriteEmptyNodes = true;
-                pageDocument.OptionOutputOptimizeAttributeValues = false; // TODO: true if HTML doctype
 
+                OptimizeDocument(pageDocument);
                 this.SaveToPageDisk(pageUrl, pageDocument);
                 this.UpdateLinks(pageUrl, pageDocument);
                 this.GetResources(pageUrl, pageDocument);
@@ -139,6 +141,34 @@
             }
 
             this.pages[pageUrl] = "Success!";
+        }
+
+        private static void OptimizeDocument(HtmlDocument pageDocument)
+        {
+            pageDocument.OptionOutputOptimizeAttributeValues = true;
+            foreach (var textNode in (from node in pageDocument.DocumentNode.DescendantNodes()
+                                       where node.NodeType == HtmlNodeType.Text
+                                       select node).ToArray())
+            {
+                if (string.IsNullOrWhiteSpace(textNode.InnerText))
+                {
+                    textNode.Remove();
+                }
+
+                textNode.InnerHtml = textNode.InnerHtml.Trim();
+            }
+
+            foreach (var commentNode in (from node in pageDocument.DocumentNode.DescendantNodes()
+                                         where node.NodeType == HtmlNodeType.Comment
+                                         select node).ToArray())
+            {
+                if (!DoctypeRegex.IsMatch(commentNode.InnerHtml) && 
+                    !StartsWithIEConditionalCommentRegex.IsMatch(commentNode.InnerHtml) && 
+                    !EndsWithIEConditionalCommentRegex.IsMatch(commentNode.InnerHtml))
+                {
+                    commentNode.Remove();
+                }
+            }
         }
 
         private void GetResources(Uri pageUrl, HtmlDocument pageDocument)
