@@ -146,7 +146,7 @@
         private static void OptimizeDocument(HtmlDocument pageDocument)
         {
             pageDocument.OptionOutputOptimizeAttributeValues = true;
-            foreach (var textNode in (from node in pageDocument.DocumentNode.DescendantNodes()
+            foreach (var textNode in (from node in pageDocument.DocumentNode.Descendants()
                                        where node.NodeType == HtmlNodeType.Text
                                        select node).ToArray())
             {
@@ -158,7 +158,7 @@
                 textNode.InnerHtml = textNode.InnerHtml.Trim();
             }
 
-            foreach (var commentNode in (from node in pageDocument.DocumentNode.DescendantNodes()
+            foreach (var commentNode in (from node in pageDocument.DocumentNode.Descendants()
                                          where node.NodeType == HtmlNodeType.Comment
                                          select node).ToArray())
             {
