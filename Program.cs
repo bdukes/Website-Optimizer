@@ -1,8 +1,8 @@
 ﻿namespace PurpleLemonPhotography.WebsiteOptimizer
 {
     using System;
-    using System.Diagnostics;
-    using System.IO;
+
+    using StructureMap;
 
     public class Program
     {
@@ -31,21 +31,21 @@
             Console.WriteLine("All Done!");
         }
 
-        private static void BrowseToSite()
-        {
-            Process.Start(
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Mozilla Firefox\firefox.exe"),
-                "http://localhost:8080/");
-        }
+        ////private static void BrowseToSite()
+        ////{
+        ////    Process.Start(
+        ////        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), @"Mozilla Firefox\firefox.exe"),
+        ////        "http://localhost:8080/");
+        ////}
 
-        private static void StartWebserver(Uri outputFolder)
-        {
-            Process.Start(
-                Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86),
-                    @"microsoft shared\DevServer\10.0\Webdev.WebServer40.exe"),
-                string.Format("/port:8080 /path:\"{0}\"", outputFolder.LocalPath));
-        }
+        ////private static void StartWebserver(Uri outputFolder)
+        ////{
+        ////    Process.Start(
+        ////        Path.Combine(
+        ////            Environment.GetFolderPath(Environment.SpecialFolder.CommonProgramFilesX86),
+        ////            @"microsoft shared\DevServer\10.0\Webdev.WebServer40.exe"),
+        ////        string.Format("/port:8080 /path:\"{0}\"", outputFolder.LocalPath));
+        ////}
 
         private static WebCrawler ProcessArguments(string[] args)
         {
@@ -55,7 +55,8 @@
                 return null;
             }
 
-            return new WebCrawler(url: args[0], outputFolder: args[2], debugMessages: args.Length == 4);
+            ContainerBootstrapper.BootstrapStructureMap(url: args[0], outputFolder: args[2], debugMessages: args.Length == 4);
+            return ObjectFactory.GetInstance<WebCrawler>();
         }
     }
 }

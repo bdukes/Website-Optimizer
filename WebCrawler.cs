@@ -10,9 +10,17 @@
 
     using HtmlAgilityPack;
 
+    using PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors;
+
     public class WebCrawler
     {
         private const string PageFileName = "index.htm";
+
+        private readonly IPreCrawlProcessor[] preCrawlProcessors;
+        private readonly IPageProcessor[] pageProcessors;
+        private readonly IPostCrawlProcessor[] postCrawlProcessors;
+
+        private readonly Logger logger;
 
         private readonly Dictionary<Uri, string> pages;
 
@@ -24,19 +32,20 @@
         private static readonly Regex StartsWithIEConditionalCommentRegex = new Regex(@"^<!--\[if [^\]]*\]>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex EndsWithIEConditionalCommentRegex = new Regex(@"<!\[endif\]-->$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public WebCrawler(string url, string outputFolder, bool debugMessages)
+        public WebCrawler(string url, string outputFolder, bool debugMessages, IPreCrawlProcessor[] preCrawlProcessors, IPageProcessor[] pageProcessors, IPostCrawlProcessor[] postCrawlProcessors)
         {
             this.Url = new Uri(url, UriKind.Absolute);
             this.OutputFolder = new Uri(new Uri(Environment.CurrentDirectory + Path.DirectorySeparatorChar), outputFolder + Path.DirectorySeparatorChar);
-            this.DebugMessages = debugMessages;
+            this.logger = new Logger(debugMessages);
+            this.preCrawlProcessors = preCrawlProcessors;
+            this.pageProcessors = pageProcessors;
+            this.postCrawlProcessors = postCrawlProcessors;
 
-            this.LogMessage("Output Folder is {0}", this.OutputFolder.LocalPath);
+            this.logger.LogDebugMessage("Output Folder is {0}", this.OutputFolder.LocalPath);
 
             this.siteRoot = new Uri(this.Url.GetLeftPart(UriPartial.Authority));
             this.pages = new Dictionary<Uri, string> { { this.Url, null } };
         }
-
-        public bool DebugMessages { get; private set; }
 
         public Uri OutputFolder { get; private set; }
 
@@ -44,13 +53,9 @@
 
         public void ProcessWebsite()
         {
-            try
+            foreach (var processor in this.preCrawlProcessors)
             {
-                Directory.Delete(this.OutputFolder.LocalPath, true);
-            }
-            catch (IOException exc)
-            {
-                this.LogMessage("Error clearing output folder: {0}", exc.Message);
+                processor.BeforeCrawl(this.OutputFolder, this.siteRoot, this.pages, this.resources, this.logger);
             }
 
             var uncrawledPages = this.GetUncrawledPages();
@@ -64,62 +69,20 @@
             } 
             while ((uncrawledPages = this.GetUncrawledPages()).Any());
 
-            OptimizeResources();
+            foreach (var processor in this.postCrawlProcessors)
+            {
+                processor.AfterCrawl(this.OutputFolder, this.siteRoot, this.pages, this.resources, this.logger);
+            }
 
             foreach (var page in this.pages)
             {
-                Console.WriteLine("{0}: {1}", page.Key, page.Value);
+                this.logger.LogMessage("{0}: {1}", page.Key, page.Value);
             }
 
             foreach (var resource in this.resources.OrderBy(r => Path.GetExtension(r.Key.LocalPath)))
             {
-                Console.WriteLine("{0}: {1}", this.OutputFolder.MakeRelativeUri(resource.Key), resource.Value);
+                this.logger.LogMessage("{0}: {1}", this.OutputFolder.MakeRelativeUri(resource.Key), resource.Value);
             }
-        }
-
-        private void OptimizeResources()
-        {
-            foreach (var resource in this.resources.Keys.ToArray())
-            {
-                var extension = Path.GetExtension(resource.LocalPath);
-                switch (extension.ToUpperInvariant())
-                {
-                    case ".CSS":
-                        break;
-                    case ".JS":
-                        OptimizeJavaScript(resource);
-                        break;
-                    case ".PNG":
-                        break;
-                    default:
-                        this.resources[resource] = "No support for optimizing " + extension;
-                        break;
-                }
-            }
-        }
-
-        private void OptimizeJavaScript(Uri resource)
-        {
-            this.LogMessage("Optimizing " + this.OutputFolder.MakeRelativeUri(resource));
-            var externsFileName = GetExternsFilePath(resource.LocalPath);
-
-// ReSharper disable PossibleNullReferenceException
-            Process.Start(
-                new ProcessStartInfo(
-                    fileName: "java",
-                    arguments:
-                        string.Format(
-                            @"-jar libs\compiler.jar --js=""{0}"" --js_output_file=""{0}"" --warning_level VERBOSE --externs=""{1}""",
-                            resource.LocalPath,
-                            externsFileName))
-                    {
-                        WorkingDirectory = Environment.CurrentDirectory,
-                        UseShellExecute = !this.DebugMessages,
-                        RedirectStandardOutput = this.DebugMessages
-                    }).WaitForExit();
-
-// ReSharper restore PossibleNullReferenceException
-            File.Delete(externsFileName);
         }
 
         private void ProcessPage(Uri pageUrl)
@@ -190,7 +153,7 @@
                 foreach (var resourceUrls in resourcesUrls)
                 {
                     var localResourcePath = resourceUrls.FilePath.LocalPath;
-                    this.LogMessage("Saving resource {0} to {1}", pageUrl, localResourcePath);
+                    this.logger.LogDebugMessage("Saving resource {0} to {1}", pageUrl, localResourcePath);
 
                     string errorMessage;
                     if (!this.VerifyDirectoryExists(Path.GetDirectoryName(localResourcePath), out errorMessage))
@@ -235,7 +198,7 @@
         {
             var relativeFilePath = Path.Combine(pageUrl.LocalPath.Substring(1), PageFileName);
             var filename = new Uri(this.OutputFolder, relativeFilePath).LocalPath;
-            this.LogMessage("Saving page {0} to {1}", pageUrl, filename);
+            this.logger.LogDebugMessage("Saving page {0} to {1}", pageUrl, filename);
 
             string errorMessage;
             if (!this.VerifyDirectoryExists(Path.GetDirectoryName(filename), out errorMessage))
@@ -281,7 +244,7 @@
             catch (IOException exc)
             {
                 errorMessage = "IOException trying to create directory: " + exc.Message;
-                this.LogMessage(errorMessage);
+                this.logger.LogDebugMessage(errorMessage);
                 return false;
             }
         }
@@ -289,18 +252,6 @@
         private IEnumerable<Uri> GetUncrawledPages()
         {
             return this.pages.Where(p => p.Value == null).Select(p => p.Key);
-        }
-
-        private void LogMessage(string format, params object[] arg)
-        {
-            if (!this.DebugMessages)
-            {
-                return;
-            }
-
-            Console.WriteLine("****************************************");
-            Console.WriteLine(format, arg);
-            Console.WriteLine();
         }
     }
 }
