@@ -10,7 +10,7 @@
 
     public static class Extensions
     {
-        public static IEnumerable<ResourceFile> GetResourcesUrls(this HtmlDocument pageDocument, Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> resources, Uri pageUrl)
+        public static IEnumerable<ResourceFile> GetResourcesUrls(this HtmlDocument pageDocument, Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> resources, Uri pageUrl)
         {
             return pageDocument.DocumentNode.Descendants("script")
                 .Union(pageDocument.DocumentNode.Descendants("img"))
@@ -19,7 +19,7 @@
                 .Where(url => url != null)
                 .Select(url => new Uri(pageUrl, url))
                 .Select(uri => new ResourceFile(uri, new Uri(outputFolder, uri.LocalPath.Substring(1))))
-                .Where(resource => !resources.ContainsKey(resource.FilePath) && siteRoot.IsBaseOf(resource.ResourceUrl));
+                .Where(resource => !resources.ContainsKey(resource.FilePath) && isLocalUrl(resource.ResourceUrl));
         }
     }
 }

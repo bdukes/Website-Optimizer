@@ -7,6 +7,6 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
 
     public interface IPageProcessor
     {
-        void ProcessPage(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger);
+        void ProcessPage(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger);
     }
 }

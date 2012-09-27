@@ -13,7 +13,7 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
         private static readonly Regex StartsWithIEConditionalCommentRegex = new Regex(@"^<!--\[if [^\]]*\]>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
         private static readonly Regex EndsWithIEConditionalCommentRegex = new Regex(@"<!\[endif\]-->$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
-        public void ProcessPage(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
+        public void ProcessPage(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
         {
             pageDocument.OptionOutputOptimizeAttributeValues = true;
             foreach (var textNode in (from node in pageDocument.DocumentNode.Descendants()

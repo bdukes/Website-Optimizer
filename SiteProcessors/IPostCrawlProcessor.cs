@@ -5,6 +5,6 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
 
     public interface IPostCrawlProcessor
     {
-        void AfterCrawl(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Logger logger);
+        void AfterCrawl(Uri outputFolder, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Logger logger);
     }
 }

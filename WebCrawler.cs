@@ -47,7 +47,7 @@
         {
             foreach (var processor in this.preCrawlProcessors)
             {
-                processor.BeforeCrawl(this.OutputFolder, this.siteRoot, this.pages, this.resources, this.logger);
+                processor.BeforeCrawl(this.OutputFolder, this.logger);
             }
 
             var uncrawledPages = this.GetUncrawledPages();
@@ -63,7 +63,7 @@
 
             foreach (var processor in this.postCrawlProcessors)
             {
-                processor.AfterCrawl(this.OutputFolder, this.siteRoot, this.pages, this.resources, this.logger);
+                processor.AfterCrawl(this.OutputFolder, this.pages, this.resources, this.logger);
             }
 
             foreach (var page in this.pages)
@@ -87,7 +87,7 @@
                 this.UpdateLinks(pageUrl, pageDocument);
                 foreach (var processor in this.pageProcessors)
                 {
-                    processor.ProcessPage(this.OutputFolder, this.siteRoot, this.pages, this.resources, pageUrl, pageDocument, this.logger);
+                    processor.ProcessPage(this.OutputFolder, this.IsLocalUrl, this.pages, this.resources, pageUrl, pageDocument, this.logger);
                 }
             }
             catch (Exception exc)
@@ -107,7 +107,7 @@
 
             var absoluteLinks = links
                 .Select(href => new Uri(pageUrl, href))
-                .Where(uri => this.siteRoot.IsBaseOf(uri));
+                .Where(this.IsLocalUrl);
 
             var newLinks = absoluteLinks.Except(this.pages.Keys);
 
@@ -115,6 +115,11 @@
             {
                 this.pages.Add(newLink, null);
             }
+        }
+
+        private bool IsLocalUrl(Uri uri)
+        {
+            return this.siteRoot.IsBaseOf(uri) || uri.DnsSafeHost.EndsWith('.' + this.siteRoot.DnsSafeHost, StringComparison.OrdinalIgnoreCase);
         }
 
         private IEnumerable<Uri> GetUncrawledPages()

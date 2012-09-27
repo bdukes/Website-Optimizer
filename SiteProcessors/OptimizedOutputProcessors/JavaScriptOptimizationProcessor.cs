@@ -11,9 +11,9 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
 
     public class JavaScriptOptimizationProcessor : IPageProcessor, IPostCrawlProcessor
     {
-        public void ProcessPage(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
+        public void ProcessPage(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
         {
-            var resourcesUrls = pageDocument.GetResourcesUrls(outputFolder, siteRoot, resources, pageUrl);
+            var resourcesUrls = pageDocument.GetResourcesUrls(outputFolder, isLocalUrl, resources, pageUrl);
 
             using (var webClient = new WebClient())
             {
@@ -46,7 +46,7 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
             }
         }
 
-        public void AfterCrawl(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Logger logger)
+        public void AfterCrawl(Uri outputFolder, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Logger logger)
         {
             foreach (var resource in resources.Keys.ToArray().Where(resource => Path.GetExtension(resource.LocalPath).Equals(".JS", StringComparison.OrdinalIgnoreCase)))
             {

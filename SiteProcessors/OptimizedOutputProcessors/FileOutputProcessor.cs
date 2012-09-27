@@ -12,7 +12,7 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
     {
         private const string PageFileName = "index.htm";
 
-        public void BeforeCrawl(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Logger logger)
+        public void BeforeCrawl(Uri outputFolder, Logger logger)
         {
             try
             {
@@ -24,10 +24,10 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
             }
         }
 
-        public void ProcessPage(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
+        public void ProcessPage(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
         {
             this.SavePageFile(outputFolder, pages, pageUrl, pageDocument, logger);
-            this.GetResources(outputFolder, siteRoot, pages, resources, pageUrl, pageDocument, logger);
+            this.GetResources(outputFolder, isLocalUrl, pages, resources, pageUrl, pageDocument, logger);
         }
 
         private void SavePageFile(Uri outputFolder, Dictionary<Uri, string> pages, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
@@ -46,9 +46,9 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
             pageDocument.Save(filename);
         }
 
-        private void GetResources(Uri outputFolder, Uri siteRoot, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
+        private void GetResources(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
         {
-            var resourcesUrls = pageDocument.GetResourcesUrls(outputFolder, siteRoot, resources, pageUrl);
+            var resourcesUrls = pageDocument.GetResourcesUrls(outputFolder, isLocalUrl, resources, pageUrl);
 
             using (var webClient = new WebClient())
             {
