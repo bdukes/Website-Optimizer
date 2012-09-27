@@ -9,7 +9,7 @@ namespace PurpleLemonPhotography.WebsiteOptimizer.SiteProcessors
     {
         public void ProcessPage(Uri outputFolder, Func<Uri, bool> isLocalUrl, Dictionary<Uri, string> pages, Dictionary<Uri, string> resources, Uri pageUrl, HtmlDocument pageDocument, Logger logger)
         {
-            throw new NotImplementedException();
+            logger.LogDebugMessage("Image optimization not yet implemented");
         }
     }
 }
