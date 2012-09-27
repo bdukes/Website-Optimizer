@@ -89,15 +89,14 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ContainerBootstrapper.cs" />
+    <Compile Include="Extensions.cs" />
     <Compile Include="Logger.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="SiteProcessors\FileOutputProcessor.cs" />
-    <Compile Include="SiteProcessors\ImageOptimizationProcessor.cs" />
+    <Compile Include="ResourceFile.cs" />
     <Compile Include="SiteProcessors\IPageProcessor.cs" />
     <Compile Include="SiteProcessors\IPostCrawlProcessor.cs" />
     <Compile Include="SiteProcessors\IPreCrawlProcessor.cs" />
-    <Compile Include="SiteProcessors\JavaScriptOptimizationProcessor.cs" />
     <Compile Include="WebCrawler.cs" />
   </ItemGroup>
   <ItemGroup>

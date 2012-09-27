@@ -2,11 +2,8 @@
 {
     using System;
     using System.Collections.Generic;
-    using System.Diagnostics;
     using System.IO;
     using System.Linq;
-    using System.Net;
-    using System.Text.RegularExpressions;
 
     using HtmlAgilityPack;
 
@@ -14,7 +11,6 @@
 
     public class WebCrawler
     {
-        private const string PageFileName = "index.htm";
 
         private readonly IPreCrawlProcessor[] preCrawlProcessors;
         private readonly IPageProcessor[] pageProcessors;
@@ -27,10 +23,6 @@
         private readonly Dictionary<Uri, string> resources = new Dictionary<Uri, string>();
 
         private readonly Uri siteRoot;
-
-        private static readonly Regex DoctypeRegex = new Regex(@"^<!\s*DOCTYPE", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex StartsWithIEConditionalCommentRegex = new Regex(@"^<!--\[if [^\]]*\]>", RegexOptions.IgnoreCase | RegexOptions.Compiled);
-        private static readonly Regex EndsWithIEConditionalCommentRegex = new Regex(@"<!\[endif\]-->$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         public WebCrawler(string url, string outputFolder, bool debugMessages, IPreCrawlProcessor[] preCrawlProcessors, IPageProcessor[] pageProcessors, IPostCrawlProcessor[] postCrawlProcessors)
         {
@@ -92,10 +84,11 @@
                 var webHelper = new HtmlWeb();
                 var pageDocument = webHelper.Load(pageUrl.AbsoluteUri);
 
-                OptimizeDocument(pageDocument);
-                this.SaveToPageDisk(pageUrl, pageDocument);
                 this.UpdateLinks(pageUrl, pageDocument);
-                this.GetResources(pageUrl, pageDocument);
+                foreach (var processor in this.pageProcessors)
+                {
+                    processor.ProcessPage(this.OutputFolder, this.siteRoot, this.pages, this.resources, pageUrl, pageDocument, this.logger);
+                }
             }
             catch (Exception exc)
             {
@@ -104,110 +97,6 @@
             }
 
             this.pages[pageUrl] = "Success!";
-        }
-
-        private static void OptimizeDocument(HtmlDocument pageDocument)
-        {
-            pageDocument.OptionOutputOptimizeAttributeValues = true;
-            foreach (var textNode in (from node in pageDocument.DocumentNode.Descendants()
-                                       where node.NodeType == HtmlNodeType.Text
-                                       select node).ToArray())
-            {
-                if (string.IsNullOrWhiteSpace(textNode.InnerText))
-                {
-                    textNode.Remove();
-                }
-
-                textNode.InnerHtml = textNode.InnerHtml.Trim();
-            }
-
-            foreach (var commentNode in (from node in pageDocument.DocumentNode.Descendants()
-                                         where node.NodeType == HtmlNodeType.Comment
-                                         select node).ToArray())
-            {
-                if (!DoctypeRegex.IsMatch(commentNode.InnerHtml) && 
-                    !StartsWithIEConditionalCommentRegex.IsMatch(commentNode.InnerHtml) && 
-                    !EndsWithIEConditionalCommentRegex.IsMatch(commentNode.InnerHtml))
-                {
-                    commentNode.Remove();
-                }
-            }
-        }
-
-        private void GetResources(Uri pageUrl, HtmlDocument pageDocument)
-        {
-            var linkUrls = pageDocument.DocumentNode.Descendants("link").Select(link => link.GetAttributeValue("href", null));
-            var resourcesUrls = pageDocument.DocumentNode.Descendants("script").Union(pageDocument.DocumentNode.Descendants("img"))
-                .Select(elem => elem.GetAttributeValue("src", null)).Union(linkUrls)
-                .Where(url => url != null)
-                .Select(url => new Uri(pageUrl, url))
-                .Select(uri => new
-            {
-                ResourceUrl = uri,
-                FilePath = new Uri(this.OutputFolder, uri.LocalPath.Substring(1))
-            })
-            .Where(resource => !this.resources.ContainsKey(resource.FilePath) && this.siteRoot.IsBaseOf(resource.ResourceUrl));
-
-            using (var webClient = new WebClient())
-            {
-                foreach (var resourceUrls in resourcesUrls)
-                {
-                    var localResourcePath = resourceUrls.FilePath.LocalPath;
-                    this.logger.LogDebugMessage("Saving resource {0} to {1}", pageUrl, localResourcePath);
-
-                    string errorMessage;
-                    if (!this.VerifyDirectoryExists(Path.GetDirectoryName(localResourcePath), out errorMessage))
-                    {
-                        this.pages[pageUrl] = errorMessage;
-                        continue;
-                    }
-
-                    webClient.DownloadFile(resourceUrls.ResourceUrl, localResourcePath);
-
-                    this.resources.Add(resourceUrls.FilePath, null);
-
-                    if (Path.GetExtension(localResourcePath).Equals(".js", StringComparison.OrdinalIgnoreCase))
-                    {
-                        var externsFileName = GetExternsFilePath(localResourcePath);
-                        try
-                        {
-                            webClient.DownloadFile(GetExternsFileUrl(resourceUrls.ResourceUrl), externsFileName);
-                        }
-                        catch (WebException)
-                        {
-                            using (File.Create(externsFileName))
-                            {
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        private static string GetExternsFileUrl(Uri resourceUrl)
-        {
-            return resourceUrl.AbsoluteUri.Substring(0, resourceUrl.AbsoluteUri.Length - 3) + ".externs.js";
-        }
-
-        private static string GetExternsFilePath(string filePath)
-        {
-            return Path.Combine(Environment.CurrentDirectory, Path.GetFileNameWithoutExtension(filePath) + ".externs.js");
-        }
-
-        private void SaveToPageDisk(Uri pageUrl, HtmlDocument pageDocument)
-        {
-            var relativeFilePath = Path.Combine(pageUrl.LocalPath.Substring(1), PageFileName);
-            var filename = new Uri(this.OutputFolder, relativeFilePath).LocalPath;
-            this.logger.LogDebugMessage("Saving page {0} to {1}", pageUrl, filename);
-
-            string errorMessage;
-            if (!this.VerifyDirectoryExists(Path.GetDirectoryName(filename), out errorMessage))
-            {
-                this.pages[pageUrl] = errorMessage;
-                return;
-            }
-
-            pageDocument.Save(filename);
         }
 
         private void UpdateLinks(Uri pageUrl, HtmlDocument pageDocument)
@@ -225,27 +114,6 @@
             foreach (var newLink in newLinks)
             {
                 this.pages.Add(newLink, null);
-            }
-        }
-
-        private bool VerifyDirectoryExists(string directoryName, out string errorMessage)
-        {
-            errorMessage = null;
-            if (Directory.Exists(directoryName))
-            {
-                return true;
-            }
-            
-            try
-            {
-                Directory.CreateDirectory(directoryName);
-                return true;
-            }
-            catch (IOException exc)
-            {
-                errorMessage = "IOException trying to create directory: " + exc.Message;
-                this.logger.LogDebugMessage(errorMessage);
-                return false;
             }
         }
 

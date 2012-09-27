@@ -4,12 +4,8 @@
 
     using StructureMap;
 
-    public class ContainerBootstrapper
+    public static class ContainerBootstrapper
     {
-        public static void BootstrapStructureMap()
-        {
-        }
-
         public static void BootstrapStructureMap(string url, string outputFolder, bool debugMessages)
         {
             ObjectFactory.Initialize(x =>
@@ -26,9 +22,9 @@
                                 scanner.WithDefaultConventions();
                             });
 
-                    x.ForConcreteType<WebCrawler>().Configure.Ctor<string>("url").Is(url);
-                    x.ForConcreteType<WebCrawler>().Configure.Ctor<string>("outputFolder").Is(outputFolder);
-                    x.ForConcreteType<WebCrawler>().Configure.Ctor<bool>("debugMessages").Is(debugMessages);
+                    x.ForConcreteType<WebCrawler>().Configure.Ctor<string>("url").Is(url)
+                                                             .Ctor<string>("outputFolder").Is(outputFolder)
+                                                             .Ctor<bool>("debugMessages").Is(debugMessages);
                 });
         }
     }
